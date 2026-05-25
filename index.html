@@ -958,13 +958,27 @@ var CHART_COLORS = ['#22c55e','#ef4444','#f59e0b','#3b82f6','#8b5cf6','#ec4899',
 })();
 
 // ── API Helper (fetch with JSONP response format) ──────────
+
+// ── Safe POST helper (handles GAS redirect + text response) ──
+function _gasPost(payload) {
+  return fetch(CFG.gasUrl, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(payload)})
+  .then(function(r){ return r.text(); })
+  .then(function(text) {
+    try {
+      try { return JSON.parse(text); } catch(e) {
+        var s = text.indexOf('('), e2 = text.lastIndexOf(')');
+        return (s > 0 && e2 > s) ? JSON.parse(text.substring(s+1, e2)) : JSON.parse(text);
+      }
+    } catch(pe) { return { success: false, error: 'Response parse error' }; }
+  });
+}
+
 function apiCall(action, params, method) {
   return new Promise(function(resolve, reject) {
     if (!CFG.gasUrl) { reject({error:'Backend URL not configured.'}); return; }
     var url = CFG.gasUrl;
     if (method === 'POST') {
-      fetch(url, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(params)})
-      .then(function(r){ return r.json(); }).then(resolve).catch(reject);
+      _gasPost(params).then(resolve).catch(reject);
     } else {
       var p = params || {};
       p.action = action;
@@ -1634,8 +1648,7 @@ function submitAttendance() {
     updatedBy: CFG.user ? CFG.user.displayName : 'System'
   };
   apiCall('dummy', {}, 'POST').catch(function(){}); // fallback
-  fetch(CFG.gasUrl, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(payload)})
-  .then(function(r){ return r.json(); })
+  _gasPost(payload)
   .then(function(res) {
     btn.disabled = false;
     btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i><span id="submitTxt">Submit All</span>';
@@ -1763,16 +1776,23 @@ function selectMonthlyStatus(empId, name, date, status, btn) {
     record: {empId:empId, name:name, date:date, status:status, updatedBy: CFG.user ? CFG.user.displayName : 'System'}
   };
   fetch(CFG.gasUrl, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(payload)})
-  .then(function(r){ return r.json(); })
-  .then(function(res) {
+  .then(function(r){ return r.text(); })
+  .then(function(text) {
+    var res;
+    try {
+      try { res = JSON.parse(text); } catch(e) {
+        var s = text.indexOf('('), e2 = text.lastIndexOf(')');
+        res = (s > 0 && e2 > s) ? JSON.parse(text.substring(s+1, e2)) : JSON.parse(text);
+      }
+    } catch(pe) { toast('Response error', 'error'); return; }
     if (res.success) {
-      var s = SC[status];
+      var s2 = SC[status];
       var cell = btn.closest('td').querySelector('.gc') || btn.closest('td').firstElementChild;
       cell.className = 'gc';
-      cell.style.background = s.bg;
-      cell.style.color = s.fg;
+      cell.style.background = s2.bg;
+      cell.style.color = s2.fg;
       cell.textContent = status;
-      cell.title = s.label;
+      cell.title = s2.label;
       cell.setAttribute('onclick', "cycleMonthlyStatus('"+empId+"','"+name+"','"+date+"',this)");
       toast('Updated: '+name+' = '+status, 'success');
     } else toast(res.error || 'Update failed', 'error');
@@ -1790,15 +1810,22 @@ function cycleMonthlyStatus(empId, name, date, btn) {
     record: {empId:empId, name:name, date:date, status:next, updatedBy: CFG.user ? CFG.user.displayName : 'System'}
   };
   fetch(CFG.gasUrl, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(payload)})
-  .then(function(r){ return r.json(); })
-  .then(function(res) {
-    if (res.success) {
-      var s = SC[next];
-      btn.style.background = s.bg;
-      btn.style.color = s.fg;
-      btn.textContent = next;
-      btn.title = s.label;
-    }
+  .then(function(r){ return r.text(); })
+  .then(function(text) {
+    try {
+      var res;
+      try { res = JSON.parse(text); } catch(e) {
+        var s = text.indexOf('('), e2 = text.lastIndexOf(')');
+        res = (s > 0 && e2 > s) ? JSON.parse(text.substring(s+1, e2)) : JSON.parse(text);
+      }
+      if (res && res.success) {
+        var s2 = SC[next];
+        btn.style.background = s2.bg;
+        btn.style.color = s2.fg;
+        btn.textContent = next;
+        btn.title = s2.label;
+      }
+    } catch(pe) {}
   }).catch(function(){});
 }
 
@@ -2156,8 +2183,7 @@ function addEmployee() {
   var btn = document.getElementById('addBtn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Adding...';
-  fetch(CFG.gasUrl, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({action:'addEmployee', employee:emp})})
-  .then(function(r){return r.json();})
+  _gasPost({action:'addEmployee', employee:emp})
   .then(function(res) {
     btn.disabled = false;
     btn.innerHTML = '<i class="fa-solid fa-plus"></i>Add Employee';
@@ -2242,8 +2268,7 @@ function saveEditEmployee() {
     plBalance: document.getElementById('ePL').value,
     updatedBy: CFG.user ? CFG.user.displayName : 'System'
   };
-  fetch(CFG.gasUrl, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({action:'editEmployee', employee:emp})})
-  .then(function(r){return r.json();})
+  _gasPost({action:'editEmployee', employee:emp})
   .then(function(res) {
     if (res.success) { toast(res.message || 'Updated!', 'success'); closeEdit(); loadAllEmployees(); renderEmpList(); }
     else toast(res.error || 'Failed', 'error');
@@ -2263,8 +2288,7 @@ function closeDelete() { document.getElementById('deleteModal').classList.remove
 
 function confirmDelete() {
   if (!CFG.deleteEmpId) return;
-  fetch(CFG.gasUrl, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({action:'deleteEmployee', empId:CFG.deleteEmpId, updatedBy:CFG.user?CFG.user.displayName:'System'})})
-  .then(function(r){return r.json();})
+  _gasPost({action:'deleteEmployee', empId:CFG.deleteEmpId, updatedBy:CFG.user?CFG.user.displayName:'System'})
   .then(function(res) {
     if (res.success) { toast(res.message||'Deleted','success'); closeDelete(); loadAllEmployees(); renderEmpList(); }
     else toast(res.error||'Failed','error');
@@ -2273,8 +2297,7 @@ function confirmDelete() {
 }
 
 function toggleStatus(empId) {
-  fetch(CFG.gasUrl, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({action:'toggleEmployeeStatus', empId:empId, updatedBy:CFG.user?CFG.user.displayName:'System'})})
-  .then(function(r){return r.json();})
+  _gasPost({action:'toggleEmployeeStatus', empId:empId, updatedBy:CFG.user?CFG.user.displayName:'System'})
   .then(function(res) {
     if (res.success) { toast(res.message||'Status changed','success'); loadAllEmployees(); renderEmpList(); }
     else toast(res.error||'Failed','error');
@@ -2307,8 +2330,7 @@ function bulkDelete() {
   var chain = Promise.resolve();
   ids.forEach(function(id) {
     chain = chain.then(function(){
-      return fetch(CFG.gasUrl, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({action:'deleteEmployee', empId:id, updatedBy:CFG.user?CFG.user.displayName:'System'})})
-      .then(function(r){return r.json();});
+      return _gasPost({action:'deleteEmployee', empId:id, updatedBy:CFG.user?CFG.user.displayName:'System'});
     });
   });
   chain.then(function(){ toast(ids.length+' employees deleted','success'); loadAllEmployees(); renderEmpList(); clearSelection(); })
@@ -2415,8 +2437,7 @@ function importCSV() {
       elBalance: row[12]||0, plBalance: row[13]||0
     };
   });
-  fetch(CFG.gasUrl, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({action:'bulkImportEmployees', employees:emps, updatedBy:CFG.user?CFG.user.displayName:'System'})})
-  .then(function(r){return r.json();})
+  _gasPost({action:'bulkImportEmployees', employees:emps, updatedBy:CFG.user?CFG.user.displayName:'System'})
   .then(function(res) {
     if (res.success) { toast(res.message||'Imported!','success'); closeCSVImport(); loadAllEmployees(); renderEmpList(); }
     else toast(res.error||'Failed','error');
@@ -2590,11 +2611,10 @@ function applyLeave() {
   if (!type || !start || !end) { toast('Fill all required fields','error'); return; }
   var empId = CFG.user.empId || '';
   var empName = CFG.user.displayName || CFG.user.username;
-  fetch(CFG.gasUrl, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({
+  _gasPost({
     action:'applyLeave',
     leave:{empId:empId, empName:empName, leaveType:type, startDate:start, endDate:end, days:days, reason:reason, appliedBy:empName}
-  })})
-  .then(function(r){return r.json();})
+  })
   .then(function(res) {
     if (res.success) { toast(res.message||'Application submitted!','success'); closeLeaveApply(); loadLeaves(); }
     else toast(res.error||'Failed','error');
@@ -2636,13 +2656,12 @@ function confirmLeaveAction() {
   if (!CFG.leaveActionId) return;
   var action = CFG.leaveActionType === 'approve' ? 'approveLeave' : 'rejectLeave';
   var comments = document.getElementById('laComments').value;
-  fetch(CFG.gasUrl, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({
+  _gasPost({
     action: action,
     leaveId: CFG.leaveActionId,
     approvedBy: CFG.user ? CFG.user.displayName : 'System',
     comments: comments
-  })})
-  .then(function(r){return r.json();})
+  })
   .then(function(res) {
     if (res.success) { toast(res.message||'Action completed!','success'); closeLeaveAction(); loadLeaves(); }
     else toast(res.error||'Failed','error');

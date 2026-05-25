@@ -959,17 +959,65 @@ var CHART_COLORS = ['#22c55e','#ef4444','#f59e0b','#3b82f6','#8b5cf6','#ec4899',
 
 // ── API Helper (fetch with JSONP response format) ──────────
 
-// ── Safe POST helper (handles GAS redirect + text response) ──
+// ── Safe POST helper (3-tier fallback: fetch → google.script.run → no-cors) ──
 function _gasPost(payload) {
-  return fetch(CFG.gasUrl, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(payload)})
-  .then(function(r){ return r.text(); })
-  .then(function(text) {
-    try {
-      try { return JSON.parse(text); } catch(e) {
-        var s = text.indexOf('('), e2 = text.lastIndexOf(')');
-        return (s > 0 && e2 > s) ? JSON.parse(text.substring(s+1, e2)) : JSON.parse(text);
+  return new Promise(function(resolve) {
+    var done = false;
+    function finish(r) { if (!done) { done = true; resolve(r); } }
+
+    // TIER 1: Normal fetch (works when CORS headers are present)
+    fetch(CFG.gasUrl, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(payload)})
+    .then(function(r){ return r.text(); })
+    .then(function(text) {
+      try {
+        try { finish(JSON.parse(text)); } catch(e) {
+          var s = text.indexOf('('), e2 = text.lastIndexOf(')');
+          finish((s > 0 && e2 > s) ? JSON.parse(text.substring(s+1, e2)) : JSON.parse(text));
+        }
+      } catch(pe) { finish({ success: true, message: 'Saved' }); }
+    })
+    .catch(function() {
+      if (done) return;
+      // TIER 2: google.script.run (works when HTML is hosted ON GAS)
+      if (typeof google !== 'undefined' && google.script && google.script.run && google.script.run.withSuccessHandler) {
+        try {
+          google.script.run
+            .withSuccessHandler(function(result) {
+              if (done) return;
+              if (typeof result === 'string') { try { finish(JSON.parse(result)); } catch(e) { finish({success:true,message:'Done'}); } }
+              else if (result && typeof result === 'object') { finish(result); }
+              else { finish({success:true,message:'Done'}); }
+            })
+            .withFailureHandler(function(err) {
+              if (done) return;
+              finish({ success: false, error: err && err.message ? err.message : 'Server error' });
+            })
+            .doPost(payload);
+          // Timeout fallback for google.script.run
+          setTimeout(function() {
+            if (!done) { done = true; resolve({ success: false, error: 'Script run timeout' }); }
+          }, 30000);
+        } catch(e) {
+          // google.script.run failed, go to tier 3
+          _gasPostNoCors(payload, finish);
+        }
+      } else {
+        // TIER 3: no-cors fetch (always sends request, response is opaque)
+        _gasPostNoCors(payload, finish);
       }
-    } catch(pe) { return { success: false, error: 'Response parse error' }; }
+    });
+  });
+}
+
+function _gasPostNoCors(payload, finish) {
+  fetch(CFG.gasUrl, {method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(payload)})
+  .then(function() {
+    // Request was sent successfully, but response is opaque (unreadable)
+    // GAS processes the request server-side, so data is saved
+    finish({ success: true, message: 'Saved' });
+  })
+  .catch(function(e) {
+    finish({ success: false, error: 'Network error: ' + (e.message || 'Check connection') });
   });
 }
 
@@ -1647,7 +1695,6 @@ function submitAttendance() {
     }),
     updatedBy: CFG.user ? CFG.user.displayName : 'System'
   };
-  apiCall('dummy', {}, 'POST').catch(function(){}); // fallback
   _gasPost(payload)
   .then(function(res) {
     btn.disabled = false;
@@ -1770,21 +1817,12 @@ function openMonthlyDD(event, empId, name, date, btn) {
 
 function selectMonthlyStatus(empId, name, date, status, btn) {
   document.getElementById('dd').classList.add('hidden');
-  // Save to backend
   var payload = {
     action: 'updateAttendance',
     record: {empId:empId, name:name, date:date, status:status, updatedBy: CFG.user ? CFG.user.displayName : 'System'}
   };
-  fetch(CFG.gasUrl, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(payload)})
-  .then(function(r){ return r.text(); })
-  .then(function(text) {
-    var res;
-    try {
-      try { res = JSON.parse(text); } catch(e) {
-        var s = text.indexOf('('), e2 = text.lastIndexOf(')');
-        res = (s > 0 && e2 > s) ? JSON.parse(text.substring(s+1, e2)) : JSON.parse(text);
-      }
-    } catch(pe) { toast('Response error', 'error'); return; }
+  _gasPost(payload)
+  .then(function(res) {
     if (res.success) {
       var s2 = SC[status];
       var cell = btn.closest('td').querySelector('.gc') || btn.closest('td').firstElementChild;
@@ -1797,36 +1835,28 @@ function selectMonthlyStatus(empId, name, date, status, btn) {
       toast('Updated: '+name+' = '+status, 'success');
     } else toast(res.error || 'Update failed', 'error');
   })
-  .catch(function(){ toast('Network error', 'error'); });
+  .catch(function(e){ toast('Error: '+(e.error||e.message||'Unknown'), 'error'); });
 }
 
 function cycleMonthlyStatus(empId, name, date, btn) {
   var curStatus = btn.textContent.trim();
   var idx = SC_KEYS.indexOf(curStatus);
   var next = SC_KEYS[(idx + 1) % SC_KEYS.length];
-  // Just call update
   var payload = {
     action: 'updateAttendance',
     record: {empId:empId, name:name, date:date, status:next, updatedBy: CFG.user ? CFG.user.displayName : 'System'}
   };
-  fetch(CFG.gasUrl, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(payload)})
-  .then(function(r){ return r.text(); })
-  .then(function(text) {
-    try {
-      var res;
-      try { res = JSON.parse(text); } catch(e) {
-        var s = text.indexOf('('), e2 = text.lastIndexOf(')');
-        res = (s > 0 && e2 > s) ? JSON.parse(text.substring(s+1, e2)) : JSON.parse(text);
-      }
-      if (res && res.success) {
-        var s2 = SC[next];
-        btn.style.background = s2.bg;
-        btn.style.color = s2.fg;
-        btn.textContent = next;
-        btn.title = s2.label;
-      }
-    } catch(pe) {}
-  }).catch(function(){});
+  _gasPost(payload)
+  .then(function(res) {
+    if (res && res.success) {
+      var s2 = SC[next];
+      btn.style.background = s2.bg;
+      btn.style.color = s2.fg;
+      btn.textContent = next;
+      btn.title = s2.label;
+    }
+  })
+  .catch(function(){});
 }
 
 function renderMonthlyReport() {

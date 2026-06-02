@@ -120,6 +120,18 @@ body{font-family:'Poppins',sans-serif;background:#F5F6FA;color:#1a1a2e;overflow-
 .portal-tab{padding:6px 14px;border-radius:10px;font-size:11px;font-weight:600;border:2px solid transparent;cursor:pointer;transition:all .25s;background:#fff;color:#6b7280;white-space:nowrap}
 .portal-tab:hover{border-color:#95D5B2;color:#2D6A4F}
 .portal-tab.active{background:linear-gradient(135deg,#1B4332,#2D6A4F);color:#fff;border-color:transparent;box-shadow:0 3px 12px rgba(27,67,50,.2)}
+/* ── Monthly Grid Enhancements ── */
+.gt thead th.wknd,.gt tbody td.wknd{background:rgba(0,0,0,0.03)}
+.gt thead th.wknd-day-today{box-shadow:inset 0 -3px 0 #FFD24B,rgba(0,0,0,0.03)}
+.m-summary-th,.m-summary-td{position:sticky!important;left:0;min-width:80px;font-size:9px;font-weight:600;padding:4px 6px;text-align:left;border-right:1px solid #e5e7eb;white-space:nowrap;z-index:5}
+.m-summary-td{left:auto;position:relative!important}
+.m-day-sum-row td{font-weight:700;font-size:10px;background:#E8F5EE!important;border-top:2px solid #1B4332}
+.m-day-sum-row td.m-day-sum-zero{background:#fef2f2!important;color:#ef4444}
+.m-fill-btn{width:20px;height:20px;border-radius:4px;border:1px solid #d1d5db;background:#fff;font-size:8px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:#6b7280;transition:all .15s;margin-left:2px;flex-shrink:0}
+.m-fill-btn:hover{background:#1B4332;color:#fff;border-color:#1B4332}
+.m-row-actions{display:flex;align-items:center;gap:2px;justify-content:center;min-width:50px;white-space:nowrap}
+.m-emp-row[data-hidden="true"]{display:none}
+#mSearch{width:140px;padding:6px 10px;font-size:11px}
 </style>
 </head>
 <body>
@@ -257,7 +269,11 @@ body{font-family:'Poppins',sans-serif;background:#F5F6FA;color:#1a1a2e;overflow-
 <div id="monthlyView" class="hidden">
   <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 fade-in">
     <div class="flex items-center gap-2"><label class="text-xs font-semibold text-gray-600"><i class="fa-regular fa-calendar mr-1 text-primary-500"></i>Month:</label><input id="monthPicker" type="month" class="ipt" style="width:auto" onchange="loadMonthlyData()"/></div>
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-2 flex-wrap">
+      <input id="mSearch" type="text" class="ipt" style="width:auto" placeholder="Search name/ID..." oninput="filterMonthlyEmps(this.value)"/>
+      <button onclick="markAllEmptyAbsent()" class="px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-semibold no-print" title="Fill all empty cells with Absent"><i class="fa-solid fa-xmark mr-1"></i>Mark All Empty → A</button>
+      <button onclick="fillAllPresent()" class="px-3 py-1.5 rounded-lg bg-green-50 hover:bg-green-100 text-green-600 text-[11px] font-semibold no-print" title="Fill all empty cells with Present"><i class="fa-solid fa-check-double mr-1"></i>Fill All → P</button>
+      <button onclick="undoMonthlyChange()" class="px-3 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-500 text-[11px] font-semibold no-print" title="Undo last change (Ctrl+Z)"><i class="fa-solid fa-rotate-left mr-1"></i>Undo</button>
       <button onclick="exportMonthlyCSV()" class="px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 text-[11px] font-semibold no-print"><i class="fa-solid fa-download mr-1"></i>Export CSV</button>
       <div id="mLegend" class="flex items-center gap-1 flex-wrap"></div>
     </div>
@@ -588,7 +604,7 @@ body{font-family:'Poppins',sans-serif;background:#F5F6FA;color:#1a1a2e;overflow-
   <div class="modal-box bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto">
     <div class="flex items-center justify-between mb-5"><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center"><i class="fa-solid fa-calendar-plus text-amber-600"></i></div><div><h3 class="text-base font-bold">Apply for Leave</h3><p class="text-[11px] text-gray-400">Submit leave application</p></div></div><button onclick="closeLeaveApply()" class="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="space-y-3 mb-4">
-      <div><label class="ipt-l">Leave Type *</label><select id="laType" class="ipt"><option value="">Select Type</option><option>CL</option><option>SL</option><option>EL</option><option>PL</option><option>ML</option><option>UL</option><option>LVWO</option><option>WOP</option></select></div>
+      <div><label class="ipt-l">Leave Type *</label><select id="laType" class="ipt"><option value="">Select Type</option><option>CL</option><option>SL</option><option>EL</option><option>PL</option><option>ML</option><option>FL</option><option>UL</option><option>LVWO</option><option>WOP</option></select></div>
       <div class="grid grid-cols-2 gap-3">
         <div><label class="ipt-l">Start Date *</label><input id="laStart" type="date" class="ipt" onchange="calcLeaveDays()"/></div>
         <div><label class="ipt-l">End Date *</label><input id="laEnd" type="date" class="ipt" onchange="calcLeaveDays()"/></div>
@@ -795,7 +811,7 @@ body{font-family:'Poppins',sans-serif;background:#F5F6FA;color:#1a1a2e;overflow-
       <div><label class="ipt-l">Employee</label><select id="ovEmpSelect" class="ipt"><option value="">Select Employee...</option></select></div>
       <div><label class="ipt-l">Action</label><select id="ovAction" class="ipt"><option value="checkin">Check-In</option><option value="checkout">Check-Out</option></select></div>
       <div><label class="ipt-l">Time (HH:MM:SS)</label><input id="ovTime" class="ipt" placeholder="09:00:00"/></div>
-      <div><label class="ipt-l">Status</label><select id="ovStatus" class="ipt"><option value="P">Present</option><option value="LP">Late Present</option><option value="A">Absent</option><option value="CL">Casual Leave</option><option value="SL">Sick Leave</option><option value="EL">Earned Leave</option><option value="PL">Paternity Leave</option><option value="HD">Half Day</option><option value="WHD">Weekly Holiday</option><option value="GHD">Govt Holiday</option><option value="ML">Maternity Leave</option></select></div>
+      <div><label class="ipt-l">Status</label><select id="ovStatus" class="ipt"><option value="P">Present</option><option value="LP">Late Present</option><option value="A">Absent</option><option value="CL">Casual Leave</option><option value="SL">Sick Leave</option><option value="EL">Earned Leave</option><option value="PL">Paternity Leave</option><option value="HD">Half Day</option><option value="WHD">Weekly Holiday</option><option value="GHD">Govt Holiday</option><option value="ML">Maternity Leave</option><option value="FL">Festival Leave</option></select></div>
       <div><label class="ipt-l">Note</label><input id="ovNote" class="ipt" placeholder="Reason for override..."/></div>
     </div>
     <button onclick="doAdminOverride()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 text-white text-sm font-semibold shadow-md"><i class="fa-solid fa-check mr-1"></i>Apply Override</button>
@@ -872,7 +888,8 @@ var CFG = {
   offices: [],
   portalClockInterval: null,
   myTodayRecord: null,
-  companySettings: {}
+  companySettings: {},
+  monthlyUndo: []
 };
 
 // ── Attendance Status Codes ───────────────────────────────
@@ -888,6 +905,7 @@ var SC = {
   'GHD':{label:'Govt Holiday',    bg:'#14b8a6', fg:'#fff'},
   'WHD':{label:'Weekly Holiday',  bg:'#4b5563', fg:'#fff'},
   'ML': {label:'Maternity Leave', bg:'#f43f5e', fg:'#fff'},
+  'FL': {label:'Festival Leave',  bg:'#a855f7', fg:'#fff'},
   'UL': {label:'Unpaid Leave',    bg:'#64748b', fg:'#fff'},
   'LVWO':{label:'Leave W/O Pay', bg:'#9ca3af', fg:'#fff'},
   'WOP':{label:'Without Pay',     bg:'#78716c', fg:'#fff'}
@@ -948,6 +966,13 @@ var CHART_COLORS = ['#22c55e','#ef4444','#f59e0b','#3b82f6','#8b5cf6','#ec4899',
   }
   // Close dropdown on click outside
   document.addEventListener('click', function(e) { closeDD(e); });
+  // Ctrl+Z undo for monthly view
+  document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.keyCode === 90) {
+      e.preventDefault();
+      if (CFG.currentTab === 'monthly') undoMonthlyChange();
+    }
+  });
   // PWA install prompt
   window.addEventListener('beforeinstallprompt', function(e) {
     e.preventDefault();
@@ -958,69 +983,6 @@ var CHART_COLORS = ['#22c55e','#ef4444','#f59e0b','#3b82f6','#8b5cf6','#ec4899',
 })();
 
 // ── API Helper (fetch with JSONP response format) ──────────
-
-// ── Safe POST helper (3-tier fallback: fetch → google.script.run → no-cors) ──
-function _gasPost(payload) {
-  return new Promise(function(resolve) {
-    var done = false;
-    function finish(r) { if (!done) { done = true; resolve(r); } }
-
-    // TIER 1: Normal fetch (works when CORS headers are present)
-    fetch(CFG.gasUrl, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(payload)})
-    .then(function(r){ return r.text(); })
-    .then(function(text) {
-      try {
-        try { finish(JSON.parse(text)); } catch(e) {
-          var s = text.indexOf('('), e2 = text.lastIndexOf(')');
-          finish((s > 0 && e2 > s) ? JSON.parse(text.substring(s+1, e2)) : JSON.parse(text));
-        }
-      } catch(pe) { finish({ success: true, message: 'Saved' }); }
-    })
-    .catch(function() {
-      if (done) return;
-      // TIER 2: google.script.run (works when HTML is hosted ON GAS)
-      if (typeof google !== 'undefined' && google.script && google.script.run && google.script.run.withSuccessHandler) {
-        try {
-          google.script.run
-            .withSuccessHandler(function(result) {
-              if (done) return;
-              if (typeof result === 'string') { try { finish(JSON.parse(result)); } catch(e) { finish({success:true,message:'Done'}); } }
-              else if (result && typeof result === 'object') { finish(result); }
-              else { finish({success:true,message:'Done'}); }
-            })
-            .withFailureHandler(function(err) {
-              if (done) return;
-              finish({ success: false, error: err && err.message ? err.message : 'Server error' });
-            })
-            .doPost(payload);
-          // Timeout fallback for google.script.run
-          setTimeout(function() {
-            if (!done) { done = true; resolve({ success: false, error: 'Script run timeout' }); }
-          }, 30000);
-        } catch(e) {
-          // google.script.run failed, go to tier 3
-          _gasPostNoCors(payload, finish);
-        }
-      } else {
-        // TIER 3: no-cors fetch (always sends request, response is opaque)
-        _gasPostNoCors(payload, finish);
-      }
-    });
-  });
-}
-
-function _gasPostNoCors(payload, finish) {
-  fetch(CFG.gasUrl, {method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(payload)})
-  .then(function() {
-    // Request was sent successfully, but response is opaque (unreadable)
-    // GAS processes the request server-side, so data is saved
-    finish({ success: true, message: 'Saved' });
-  })
-  .catch(function(e) {
-    finish({ success: false, error: 'Network error: ' + (e.message || 'Check connection') });
-  });
-}
-
 function apiCall(action, params, method) {
   return new Promise(function(resolve, reject) {
     if (!CFG.gasUrl) { reject({error:'Backend URL not configured.'}); return; }
@@ -1737,6 +1699,10 @@ function loadMonthlyData() {
   .catch(function(e) { ml.classList.add('hidden'); toast('Failed to load monthly data', 'error'); });
 }
 
+function escAttr(s) {
+  return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+}
+
 function renderMonthlyGrid(month, startDate, endDate) {
   var emps = CFG.allEmployees.filter(function(e){ return !e.Status || e.Status.toString().toLowerCase() === 'active'; });
   var att = CFG.monthlyData;
@@ -1767,37 +1733,93 @@ function renderMonthlyGrid(month, startDate, endDate) {
     legendHtml += '<span class="flex items-center gap-1 text-[9px] text-gray-500"><span class="w-3 h-3 rounded" style="background:'+s.bg+'"></span>'+code+'</span>';
   });
   document.getElementById('mLegend').innerHTML = legendHtml;
-  // Build table
+  // Build table header
   var html = '<table id="monthlyTable" class="gt"><thead><tr><th>#</th><th>Employee</th><th>ID</th>';
+  // Per-day column tracking for summary
+  var dayPresentCounts = [];
+  for (var d = 1; d <= daysInMonth; d++) { dayPresentCounts[d] = 0; }
   for (var d = 1; d <= daysInMonth; d++) {
     var dt = new Date(year, mon-1, d);
     var dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     var dayName = dayNames[dt.getDay()];
     var dateStr = year+'-'+String(mon).padStart(2,'0')+'-'+String(d).padStart(2,'0');
     var isToday = dateStr === todayStr;
-    var cls = isToday ? ' day-today' : '';
-    html += '<th class="'+cls+'" title="'+dayName+' '+d+'">'+d+'<br><span style="font-size:8px;opacity:.7">'+dayName+'</span></th>';
+    var isWknd = dt.getDay() === 0 || dt.getDay() === 6;
+    var cls = '';
+    if (isToday && isWknd) cls = ' wknd-day-today';
+    else if (isToday) cls = ' day-today';
+    else if (isWknd) cls = ' wknd';
+    html += '<th class="'+cls+'" data-date="'+dateStr+'" title="'+dayName+' '+d+'">'+d+'<br><span style="font-size:8px;opacity:.7">'+dayName+'</span></th>';
   }
+  // Summary column header
+  html += '<th class="m-summary-th" style="background:#1B4332;color:#fff;z-index:25">Summary</th>';
+  html += '<th class="m-summary-th" style="background:#1B4332;color:#fff;z-index:25;min-width:50px">Fill</th>';
   html += '</tr></thead><tbody>';
+  // Employee rows
   emps.forEach(function(emp, i) {
-    html += '<tr><td>'+(i+1)+'</td><td>'+(emp.Name||'')+'</td><td>'+(emp.Emp_ID||'')+'</td>';
+    var empName = emp.Name || '';
+    var empId = emp.Emp_ID || '';
+    var safeName = escAttr(empName);
+    var safeId = escAttr(empId);
+    // Per-employee status counts for row summary
+    var empCounts = {};
+    var filledInRow = 0;
+    html += '<tr class="m-emp-row" data-empname="'+escAttr(empName.toLowerCase())+'" data-empid="'+escAttr(empId.toLowerCase())+'" data-hidden="false">';
+    html += '<td>'+(i+1)+'</td><td title="'+escAttr(empName)+'">'+escAttr(empName)+'</td><td>'+escAttr(empId)+'</td>';
     for (var d = 1; d <= daysInMonth; d++) {
       var dateStr = year+'-'+String(mon).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-      var key = (emp.Emp_ID||'')+'_'+dateStr;
+      var key = empId+'_'+dateStr;
       var status = lookup[key] || '';
+      var dt = new Date(year, mon-1, d);
+      var isWknd = dt.getDay() === 0 || dt.getDay() === 6;
+      var wkndCls = isWknd ? ' class="wknd"' : '';
       if (status && SC[status]) {
         var s = SC[status];
-        html += '<td><button class="gc" style="background:'+s.bg+';color:'+s.fg+'" onclick="cycleMonthlyStatus(\''+emp.Emp_ID+'\',\''+emp.Name+'\',\''+dateStr+'\',this)" title="'+s.label+'">'+status+'</button></td>';
+        empCounts[status] = (empCounts[status] || 0) + 1;
+        filledInRow++;
+        if (status === 'P') dayPresentCounts[d]++;
+        html += '<td'+wkndCls+'><button class="gc" style="background:'+s.bg+';color:'+s.fg+'" onclick="cycleMonthlyStatus(\''+safeId+'\',\''+safeName+'\',\''+dateStr+'\',this)" ondblclick="clearMonthlyCell(\''+safeId+'\',\''+safeName+'\',\''+dateStr+'\',this)" title="'+s.label+'">'+status+'</button></td>';
       } else {
-        html += '<td><button class="gc empty" onclick="openMonthlyDD(event,\''+emp.Emp_ID+'\',\''+emp.Name+'\',\''+dateStr+'\',this)">-</button></td>';
+        html += '<td'+wkndCls+'><button class="gc empty" onclick="openMonthlyDD(event,\''+safeId+'\',\''+safeName+'\',\''+dateStr+'\',this)">-</button></td>';
       }
     }
+    // Row summary cell
+    var summaryParts = [];
+    ['P','A','LV','CL','SL','EL','HD'].forEach(function(code) {
+      if (empCounts[code]) summaryParts.push(empCounts[code]+code);
+    });
+    var emptyInRow = daysInMonth - filledInRow;
+    if (emptyInRow > 0) summaryParts.push(emptyInRow+'-');
+    html += '<td class="m-summary-td" style="font-size:9px;color:#374151">'+summaryParts.join(' / ')+'</td>';
+    // Fill row button
+    html += '<td class="m-row-actions"><button class="m-fill-btn" onclick="fillEntireRow(\''+safeId+'\',\''+safeName+'\',\'P\')" title="Fill row with P"><i class="fa-solid fa-check" style="font-size:8px"></i></button><button class="m-fill-btn" onclick="fillEntireRow(\''+safeId+'\',\''+safeName+'\',\'A\')" title="Fill row with A"><i class="fa-solid fa-xmark" style="font-size:8px"></i></button></td>';
     html += '</tr>';
   });
+  // Day summary row
+  html += '<tr class="m-day-sum-row"><td colspan="3" style="text-align:left;padding-left:8px;color:#1B4332">Daily P Count</td>';
+  for (var d = 1; d <= daysInMonth; d++) {
+    var cnt = dayPresentCounts[d];
+    var isZero = cnt === 0 && emps.length > 0;
+    var dt = new Date(year, mon-1, d);
+    var isWknd = dt.getDay() === 0 || dt.getDay() === 6;
+    var cls = isZero ? ' class="m-day-sum-zero"' : (isWknd ? ' class="wknd"' : '');
+    html += '<td'+cls+'>'+cnt+'</td>';
+  }
+  html += '<td colspan="2" style="color:#1B4332;text-align:center;font-size:9px">Totals</td>';
+  html += '</tr>';
   html += '</tbody></table>';
   var gridEl = document.getElementById('monthlyGrid');
   gridEl.innerHTML = html;
   initTableZoom();
+  // Auto-scroll to today's column
+  var todayTh = gridEl.querySelector('th.day-today');
+  if (todayTh) {
+    var scrollTarget = todayTh.offsetLeft - gridEl.clientWidth / 2 + todayTh.offsetWidth / 2;
+    gridEl.scrollLeft = Math.max(0, scrollTarget);
+  }
+  // Re-apply any active search filter
+  var searchVal = document.getElementById('mSearch');
+  if (searchVal && searchVal.value) filterMonthlyEmps(searchVal.value);
 }
 
 function openMonthlyDD(event, empId, name, date, btn) {
@@ -1805,9 +1827,11 @@ function openMonthlyDD(event, empId, name, date, btn) {
   var rect = btn.getBoundingClientRect();
   var dd = document.getElementById('dd');
   var html = '';
+  var si = escAttr(empId);
+  var sn = escAttr(name);
   SC_KEYS.forEach(function(code) {
     var s = SC[code];
-    html += '<button onclick="selectMonthlyStatus(\''+empId+'\',\''+name+'\',\''+date+'\',\''+code+'\',this)"><span class="dd-dot" style="background:'+s.bg+'"></span>'+code+' - '+s.label+'</button>';
+    html += '<button onclick="selectMonthlyStatus(\''+si+'\',\''+sn+'\',\''+date+'\',\''+code+'\',this)"><span class="dd-dot" style="background:'+s.bg+'"></span>'+code+' - '+s.label+'</button>';
   });
   dd.innerHTML = html;
   dd.style.left = Math.min(rect.left, window.innerWidth - 180) + 'px';
@@ -1817,21 +1841,26 @@ function openMonthlyDD(event, empId, name, date, btn) {
 
 function selectMonthlyStatus(empId, name, date, status, btn) {
   document.getElementById('dd').classList.add('hidden');
-  var payload = {
-    action: 'updateAttendance',
-    record: {empId:empId, name:name, date:date, status:status, updatedBy: CFG.user ? CFG.user.displayName : 'System'}
-  };
-  _gasPost(payload)
+  // Find old status for undo
+  var cell = btn.closest('td').querySelector('.gc') || btn.closest('td').firstElementChild;
+  var oldStatus = cell.textContent.trim();
+  if (oldStatus === '-') oldStatus = '';
+  _gasPost({ action:'updateAttendance', record:{empId:empId,name:name,date:date,status:status,updatedBy:CFG.user?CFG.user.displayName:'System'} })
   .then(function(res) {
     if (res.success) {
+      // Push undo entry
+      CFG.monthlyUndo.push({empId:empId,date:date,oldStatus:oldStatus,newStatus:status});
+      if (CFG.monthlyUndo.length > 200) CFG.monthlyUndo.shift();
       var s2 = SC[status];
-      var cell = btn.closest('td').querySelector('.gc') || btn.closest('td').firstElementChild;
       cell.className = 'gc';
       cell.style.background = s2.bg;
       cell.style.color = s2.fg;
       cell.textContent = status;
       cell.title = s2.label;
-      cell.setAttribute('onclick', "cycleMonthlyStatus('"+empId+"','"+name+"','"+date+"',this)");
+      var sn = escAttr(name);
+      var si = escAttr(empId);
+      cell.setAttribute('onclick', "cycleMonthlyStatus('"+si+"','"+sn+"','"+date+"',this)");
+      cell.setAttribute('ondblclick', "clearMonthlyCell('"+si+"','"+sn+"','"+date+"',this)");
       toast('Updated: '+name+' = '+status, 'success');
     } else toast(res.error || 'Update failed', 'error');
   })
@@ -1842,18 +1871,20 @@ function cycleMonthlyStatus(empId, name, date, btn) {
   var curStatus = btn.textContent.trim();
   var idx = SC_KEYS.indexOf(curStatus);
   var next = SC_KEYS[(idx + 1) % SC_KEYS.length];
-  var payload = {
-    action: 'updateAttendance',
-    record: {empId:empId, name:name, date:date, status:next, updatedBy: CFG.user ? CFG.user.displayName : 'System'}
-  };
-  _gasPost(payload)
+  _gasPost({ action:'updateAttendance', record:{empId:empId,name:name,date:date,status:next,updatedBy:CFG.user?CFG.user.displayName:'System'} })
   .then(function(res) {
     if (res && res.success) {
+      // Push undo entry
+      CFG.monthlyUndo.push({empId:empId,date:date,oldStatus:curStatus,newStatus:next});
+      if (CFG.monthlyUndo.length > 200) CFG.monthlyUndo.shift();
       var s2 = SC[next];
       btn.style.background = s2.bg;
       btn.style.color = s2.fg;
       btn.textContent = next;
       btn.title = s2.label;
+      var sn = escAttr(name);
+      var si = escAttr(empId);
+      btn.setAttribute('ondblclick', "clearMonthlyCell('"+si+"','"+sn+"','"+date+"',this)");
     }
   })
   .catch(function(){});
@@ -1914,6 +1945,228 @@ function exportMonthlyCSV() {
   });
   downloadCSV(csv, 'attendance_'+month+'.csv');
   toast('Monthly CSV exported!', 'success');
+}
+
+// ── Monthly View Enhancement Functions ─────────────────────
+
+function undoMonthlyChange() {
+  if (!CFG.monthlyUndo.length) { toast('Nothing to undo', 'info'); return; }
+  var entry = CFG.monthlyUndo.pop();
+  var restoredStatus = entry.oldStatus || '';
+  var payload = { action:'updateAttendance', record:{empId:entry.empId,date:entry.date,status:restoredStatus,updatedBy:CFG.user?CFG.user.displayName:'System'} };
+  _gasPost(payload)
+  .then(function(res) {
+    if (res && res.success) {
+      toast('Undone: restored cell to ' + (restoredStatus || 'empty'), 'info');
+      // Find and update the cell in the DOM
+      var table = document.getElementById('monthlyTable');
+      if (!table) return;
+      var rows = table.querySelectorAll('tr.m-emp-row');
+      for (var r = 0; r < rows.length; r++) {
+        var cells = rows[r].querySelectorAll('td');
+        var idCell = cells[2]; // 3rd td is ID
+        if (idCell && idCell.textContent.trim() === entry.empId) {
+          // Now find the date column - day columns start at index 3
+          var parts = entry.date.split('-');
+          var dayNum = parseInt(parts[2], 10);
+          var dateIdx = 3 + (dayNum - 1);
+          if (dateIdx < cells.length) {
+            var targetTd = cells[dateIdx];
+            var btn = targetTd.querySelector('.gc');
+            if (btn) {
+              if (restoredStatus && SC[restoredStatus]) {
+                var s = SC[restoredStatus];
+                btn.className = 'gc';
+                btn.style.background = s.bg;
+                btn.style.color = s.fg;
+                btn.textContent = restoredStatus;
+                btn.title = s.label;
+                var si = escAttr(entry.empId);
+                btn.setAttribute('onclick', "cycleMonthlyStatus('"+si+"','"+escAttr('x')+"','"+entry.date+"',this)");
+                btn.setAttribute('ondblclick', "clearMonthlyCell('"+si+"','"+escAttr('x')+"','"+entry.date+"',this)");
+              } else {
+                btn.className = 'gc empty';
+                btn.style.background = '';
+                btn.style.color = '';
+                btn.textContent = '-';
+                btn.title = '';
+                btn.removeAttribute('ondblclick');
+                btn.setAttribute('onclick', "openMonthlyDD(event,'"+si+"','"+escAttr('x')+"','"+entry.date+"',this)");
+              }
+            }
+          }
+          break;
+        }
+      }
+    } else { toast('Undo failed', 'error'); CFG.monthlyUndo.push(entry); }
+  })
+  .catch(function() { toast('Undo error', 'error'); CFG.monthlyUndo.push(entry); });
+}
+
+function clearMonthlyCell(empId, name, date, btn) {
+  event.stopPropagation();
+  event.preventDefault();
+  var curStatus = btn.textContent.trim();
+  if (!curStatus || curStatus === '-') return;
+  // Push to undo stack
+  CFG.monthlyUndo.push({empId:empId,date:date,oldStatus:curStatus,newStatus:''});
+  if (CFG.monthlyUndo.length > 200) CFG.monthlyUndo.shift();
+  _gasPost({ action:'updateAttendance', record:{empId:empId,name:name,date:date,status:'',updatedBy:CFG.user?CFG.user.displayName:'System'} })
+  .then(function(res) {
+    if (res && res.success) {
+      btn.className = 'gc empty';
+      btn.style.background = '';
+      btn.style.color = '';
+      btn.textContent = '-';
+      btn.title = '';
+      btn.removeAttribute('ondblclick');
+      var si = escAttr(empId);
+      var sn = escAttr(name);
+      btn.setAttribute('onclick', "openMonthlyDD(event,'"+si+"','"+sn+"','"+date+"',this)");
+      toast('Cleared: '+name+' on '+date, 'info');
+    }
+  })
+  .catch(function(){});
+}
+
+function fillEntireRow(empId, empName, status) {
+  var month = document.getElementById('monthPicker').value;
+  if (!month) { toast('Select a month first', 'error'); return; }
+  var parts = month.split('-');
+  var year = parseInt(parts[0]);
+  var mon = parseInt(parts[1]);
+  var daysInMonth = new Date(year, mon, 0).getDate();
+  // Collect all empty cells for this employee
+  var emptyDates = [];
+  for (var d = 1; d <= daysInMonth; d++) {
+    var dateStr = year+'-'+String(mon).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    var key = empId+'_'+dateStr;
+    var found = false;
+    for (var a = 0; a < CFG.monthlyData.length; a++) {
+      if ((CFG.monthlyData[a].Emp_ID||'')+'_'+(CFG.monthlyData[a].Date||'') === key && CFG.monthlyData[a].Status) {
+        found = true; break;
+      }
+    }
+    if (!found) emptyDates.push(dateStr);
+  }
+  if (!emptyDates.length) { toast('No empty cells for this employee', 'info'); return; }
+  toast('Filling '+emptyDates.length+' cells with '+status+'...', 'info');
+  // Batch send requests sequentially
+  var idx = 0;
+  function sendNext() {
+    if (idx >= emptyDates.length) {
+      toast('Row filled: '+empName+' → '+status+' ('+emptyDates.length+' cells)', 'success');
+      loadMonthlyData();
+      return;
+    }
+    var dateStr = emptyDates[idx];
+    CFG.monthlyUndo.push({empId:empId,date:dateStr,oldStatus:'',newStatus:status});
+    _gasPost({ action:'updateAttendance', record:{empId:empId,name:empName,date:dateStr,status:status,updatedBy:CFG.user?CFG.user.displayName:'System'} })
+    .then(function() { idx++; sendNext(); })
+    .catch(function() { idx++; sendNext(); });
+  }
+  sendNext();
+}
+
+function markAllEmptyAbsent() {
+  var month = document.getElementById('monthPicker').value;
+  if (!month) { toast('Select a month first', 'error'); return; }
+  var emps = CFG.allEmployees.filter(function(e){ return !e.Status || e.Status.toString().toLowerCase() === 'active'; });
+  if (!emps.length) { toast('No employees', 'error'); return; }
+  if (!confirm('Fill ALL empty cells with Absent (A) for '+emps.length+' employees?')) return;
+  var parts = month.split('-');
+  var year = parseInt(parts[0]);
+  var mon = parseInt(parts[1]);
+  var daysInMonth = new Date(year, mon, 0).getDate();
+  // Collect all empty cells
+  var emptyCells = [];
+  emps.forEach(function(emp) {
+    for (var d = 1; d <= daysInMonth; d++) {
+      var dateStr = year+'-'+String(mon).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+      var key = (emp.Emp_ID||'')+'_'+dateStr;
+      var found = false;
+      for (var a = 0; a < CFG.monthlyData.length; a++) {
+        if ((CFG.monthlyData[a].Emp_ID||'')+'_'+(CFG.monthlyData[a].Date||'') === key && CFG.monthlyData[a].Status) {
+          found = true; break;
+        }
+      }
+      if (!found) emptyCells.push({empId:emp.Emp_ID||'',name:emp.Name||'',date:dateStr});
+    }
+  });
+  if (!emptyCells.length) { toast('No empty cells found', 'info'); return; }
+  toast('Marking '+emptyCells.length+' cells as Absent...', 'info');
+  var idx = 0;
+  function sendNext() {
+    if (idx >= emptyCells.length) {
+      toast('Done: '+emptyCells.length+' cells marked Absent', 'success');
+      loadMonthlyData();
+      return;
+    }
+    var c = emptyCells[idx];
+    CFG.monthlyUndo.push({empId:c.empId,date:c.date,oldStatus:'',newStatus:'A'});
+    _gasPost({ action:'updateAttendance', record:{empId:c.empId,name:c.name,date:c.date,status:'A',updatedBy:CFG.user?CFG.user.displayName:'System'} })
+    .then(function() { idx++; sendNext(); })
+    .catch(function() { idx++; sendNext(); });
+  }
+  sendNext();
+}
+
+function fillAllPresent() {
+  var month = document.getElementById('monthPicker').value;
+  if (!month) { toast('Select a month first', 'error'); return; }
+  var emps = CFG.allEmployees.filter(function(e){ return !e.Status || e.Status.toString().toLowerCase() === 'active'; });
+  if (!emps.length) { toast('No employees', 'error'); return; }
+  if (!confirm('Fill ALL empty cells with Present (P) for '+emps.length+' employees?')) return;
+  var parts = month.split('-');
+  var year = parseInt(parts[0]);
+  var mon = parseInt(parts[1]);
+  var daysInMonth = new Date(year, mon, 0).getDate();
+  var emptyCells = [];
+  emps.forEach(function(emp) {
+    for (var d = 1; d <= daysInMonth; d++) {
+      var dateStr = year+'-'+String(mon).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+      var key = (emp.Emp_ID||'')+'_'+dateStr;
+      var found = false;
+      for (var a = 0; a < CFG.monthlyData.length; a++) {
+        if ((CFG.monthlyData[a].Emp_ID||'')+'_'+(CFG.monthlyData[a].Date||'') === key && CFG.monthlyData[a].Status) {
+          found = true; break;
+        }
+      }
+      if (!found) emptyCells.push({empId:emp.Emp_ID||'',name:emp.Name||'',date:dateStr});
+    }
+  });
+  if (!emptyCells.length) { toast('No empty cells found', 'info'); return; }
+  toast('Filling '+emptyCells.length+' cells as Present...', 'info');
+  var idx = 0;
+  function sendNext() {
+    if (idx >= emptyCells.length) {
+      toast('Done: '+emptyCells.length+' cells marked Present', 'success');
+      loadMonthlyData();
+      return;
+    }
+    var c = emptyCells[idx];
+    CFG.monthlyUndo.push({empId:c.empId,date:c.date,oldStatus:'',newStatus:'P'});
+    _gasPost({ action:'updateAttendance', record:{empId:c.empId,name:c.name,date:c.date,status:'P',updatedBy:CFG.user?CFG.user.displayName:'System'} })
+    .then(function() { idx++; sendNext(); })
+    .catch(function() { idx++; sendNext(); });
+  }
+  sendNext();
+}
+
+function filterMonthlyEmps(query) {
+  var table = document.getElementById('monthlyTable');
+  if (!table) return;
+  var rows = table.querySelectorAll('tr.m-emp-row');
+  var q = (query || '').toLowerCase().trim();
+  rows.forEach(function(row) {
+    var name = (row.getAttribute('data-empname') || '').toLowerCase();
+    var id = (row.getAttribute('data-empid') || '').toLowerCase();
+    if (!q || name.indexOf(q) > -1 || id.indexOf(q) > -1) {
+      row.setAttribute('data-hidden', 'false');
+    } else {
+      row.setAttribute('data-hidden', 'true');
+    }
+  });
 }
 
 // ── Table Zoom for Monthly Grid (CSS zoom — preserves sticky) ──
